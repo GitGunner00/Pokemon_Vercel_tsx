@@ -1,67 +1,36 @@
-import { pokemonCards, type PokemonCard, type InsertPokemonCard } from "@shared/schema";
+import { drizzle } from "drizzle-orm/node-postgres"
+import { Pool } from "pg"
+import { pokemonCards, type InsertPokemonCard, type PokemonCard } from "../lib/schema"
+import { eq } from "drizzle-orm"
 
-export interface IStorage {
-  getPokemonCards(): Promise<PokemonCard[]>;
-  getPokemonCard(id: number): Promise<PokemonCard | undefined>;
-  createPokemonCard(card: InsertPokemonCard): Promise<PokemonCard>;
-  updatePokemonCard(id: number, card: Partial<InsertPokemonCard>): Promise<PokemonCard | undefined>;
-  deletePokemonCard(id: number): Promise<boolean>;
-}
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+})
 
-export class MemStorage implements IStorage {
-  private cards: Map<number, PokemonCard>;
-  private currentId: number;
+const db = drizzle(pool)
 
-  constructor() {
-    this.cards = new Map();
-    this.currentId = 1;
-  }
-
+export const storage = {
   async getPokemonCards(): Promise<PokemonCard[]> {
-    return Array.from(this.cards.values()).sort((a, b) => 
-      new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-    );
-  }
+    return await db.select().from(pokemonCards).orderBy(pokemonCards.createdAt)
+  },
 
   async getPokemonCard(id: number): Promise<PokemonCard | undefined> {
-    return this.cards.get(id);
-  }
+    const result = await db.select().from(pokemonCards).where(eq(pokemonCards.id, id))
+    return result[0]
+  },
 
-  async createPokemonCard(insertCard: InsertPokemonCard): Promise<PokemonCard> {
-    const id = this.currentId++;
-    const card: PokemonCard = {
-      id,
-      name: insertCard.name,
-      set: insertCard.set,
-      rarity: insertCard.rarity,
-      condition: insertCard.condition,
-      number: insertCard.number || null,
-      value: insertCard.value || null,
-      notes: insertCard.notes || null,
-      imageUrl: insertCard.imageUrl || null,
-      createdAt: new Date(),
-    };
-    this.cards.set(id, card);
-    return card;
-  }
+  async createPokemonCard(data: InsertPokemonCard): Promise<PokemonCard> {
+    const result = await db.insert(pokemonCards).values(data).returning()
+    return result[0]
+  },
 
-  async updatePokemonCard(id: number, updateData: Partial<InsertPokemonCard>): Promise<PokemonCard | undefined> {
-    const existingCard = this.cards.get(id);
-    if (!existingCard) {
-      return undefined;
-    }
-
-    const updatedCard: PokemonCard = {
-      ...existingCard,
-      ...updateData,
-    };
-    this.cards.set(id, updatedCard);
-    return updatedCard;
-  }
+  async updatePokemonCard(id: number, data: Partial<InsertPokemonCard>): Promise<PokemonCard | undefined> {
+    const result = await db.update(pokemonCards).set(data).where(eq(pokemonCards.id, id)).returning()
+    return result[0]
+  },
 
   async deletePokemonCard(id: number): Promise<boolean> {
-    return this.cards.delete(id);
-  }
+    const result = await db.delete(pokemonCards).where(eq(pokemonCards.id, id)).returning()
+    return result.length > 0
+  },
 }
-
-export const storage = new MemStorage();

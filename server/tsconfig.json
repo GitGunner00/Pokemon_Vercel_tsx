@@ -13,13 +13,10 @@
     "outDir": "../dist/server",
     "rootDir": ".",
     "baseUrl": ".",
-    "paths": {
-      "@shared/*": ["../shared/*"]
-    },
     "types": ["node"],
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["**/*.ts", "../shared/**/*.ts"],
+  "include": ["**/*.ts", "../lib/**/*.ts"],
   "exclude": ["node_modules", "../dist"]
 }
